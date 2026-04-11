@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <!--
+
+ LotoStatsAI - Análise e Sorteios de Loterias IA
+ LotoStats é uma aplicação web para análise de resultados de loterias brasileiras, como Mega-Sena, Lotofácil e Lotomania. 
+ Com uma interface moderna e intuitiva, o LotoStats permite aos usuários explorar estatísticas detalhadas, tendências de 
+ números sorteados, frequências, atrasos e muito mais. 
+ A ferramenta é ideal para entusiastas de loteria que desejam entender melhor os padrões dos sorteios e tomar decisões 
+ informadas na hora de escolher seus números da sorte.
+
+ (c) Edu Pithan - edupithan@gmail.com
+
+  -->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LotoStatsAI — Análise de Loterias</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #181824;
+    --border: #252535;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --gold: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --text: #f0f0ff;
+    --muted: #6b6b88;
+    --mega: #2196F3;
+    --loto: #FF6B00;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 20% 20%, rgba(124,58,237,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(59,130,246,0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 24px rgba(124,58,237,0.4);
+  }
+
+  .logo h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--accent2); }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* TABS */
+  .game-selector {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .game-btn {
+    flex: 1;
+    padding: 16px 24px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .game-btn:hover { border-color: var(--accent); background: var(--surface2); }
+
+  .game-btn.active.mega { border-color: var(--mega); background: rgba(33,150,243,0.1); box-shadow: 0 0 20px rgba(33,150,243,0.15); }
+  .game-btn.active.loto { border-color: var(--loto); background: rgba(255,107,0,0.1); box-shadow: 0 0 20px rgba(255,107,0,0.15); }
+  .game-btn.active.facil { border-color: var(--green); background: rgba(16,185,129,0.1); box-shadow: 0 0 20px rgba(16,185,129,0.15); }
+
+  .game-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+
+  .mega .game-badge { background: rgba(33,150,243,0.2); color: var(--mega); }
+  .loto .game-badge { background: rgba(255,107,0,0.2); color: var(--loto); }
+  .facil .game-badge { background: rgba(16,185,129,0.2); color: var(--green); }
+
+  /* LOAD SECTION */
+  .load-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .load-info { flex: 1; min-width: 200px; }
+  .load-info h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .load-info p { font-size: 13px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    color: white;
+    box-shadow: 0 4px 16px rgba(124,58,237,0.3);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.4); }
+  .btn-primary:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); }
+
+  .btn-gold {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: white;
+    box-shadow: 0 4px 16px rgba(245,158,11,0.3);
+  }
+  .btn-gold:hover { transform: translateY(-2px); }
+
+  /* PROGRESS */
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--blue));
+    border-radius: 2px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  /* NAV TABS */
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 28px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tab {
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+
+  .nav-tab:hover { color: var(--text); background: var(--surface2); }
+  .nav-tab.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+<!--  (c) E d u P i t h a n - e d u p i t h a n @ g m a i l . c o m --> 
+  /* GRID LAYOUTS */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .card h3 {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stat-value {
+    font-size: 36px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* BALLS */
+  .ball {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .ball-mega { background: linear-gradient(135deg, #1565C0, #42A5F5); color: white; box-shadow: 0 2px 8px rgba(33,150,243,0.4); }
+  .ball-loto { background: linear-gradient(135deg, #E65100, #FF8F00); color: white; box-shadow: 0 2px 8px rgba(255,107,0,0.4); }
+  .ball-hot { background: linear-gradient(135deg, #c62828, #ef5350); color: white; box-shadow: 0 2px 8px rgba(239,68,68,0.4); }
+  .ball-cold { background: linear-gradient(135deg, #0277bd, #29b6f6); color: white; box-shadow: 0 2px 8px rgba(59,130,246,0.4); }
+  .ball-gen { background: linear-gradient(135deg, #4a1d96, #7c3aed); color: white; box-shadow: 0 2px 8px rgba(124,58,237,0.5); }
+  .ball-sm { width: 30px; height: 30px; font-size: 11px; }
+
+  /* FREQUENCY BARS */
+  .freq-list { display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
+
+  .freq-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .freq-bar-wrap {
+    flex: 1;
+    height: 22px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .freq-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+  }
+
+  .freq-bar-label {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+  }
+
+  /* HEATMAP */
+  .heatmap {
+    display: grid;
+    gap: 6px;
+    margin: 0 auto;
+  }
+
+  .heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15px;
+    position: relative;
+  }
+
+  .heatmap-cell:hover { transform: scale(1.15); z-index: 10; }
+
+  /* GENERATOR */
+  .generator-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+
+  .gen-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .gen-header h2 { font-size: 20px; font-weight: 800; }
+
+  .gen-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .option-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .option-group select,
+  .option-group input[type="number"],
+  .option-group input[type="range"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .option-group select:focus, .option-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toggle-row:last-child { border-bottom: none; }
+
+  .toggle-info h4 { font-size: 14px; font-weight: 600; }
+  .toggle-info p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .toggle {
+    position: relative;
+    width: 44px; height: 24px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 2px; top: 2px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  .toggle input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(20px); background: white; }
+
+  /* GENERATED BALLS */
+  .gen-result {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .gen-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .gen-row-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  .balls-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* LAST DRAWS */
+  .draws-list { display: flex; flex-direction: column; gap: 10px; max-height: 500px; overflow-y: auto; }
+
+  .draw-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .draw-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    min-width: 60px;
+  }
+
+  .draw-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 90px;
+  }
+
+  /* ANALYSIS ITEMS */
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 8px;
+  }
+
+  .analysis-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .analysis-item span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* DELAY TABLE */
+  .delay-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+  }
+
+  .delay-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+<!--  (c) E d u P i t h a n - e d u p i t h a n @ g m a i l . c o m --> 
+  .delay-item:hover { border-color: var(--accent); }
+
+  .delay-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    display: block;
+  }
+
+  .delay-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+  }
+
+  /* PAIRS */
+  .pairs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  .pair-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pair-count {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+  .empty-state p { font-size: 14px; }
+
+  /* LOADING */
+  .loading-spinner {
+    width: 20px; height: 20px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* SECTION TITLES */
+  .section-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tag-green { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .tag-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .tag-gold { background: rgba(245,158,11,0.15); color: var(--gold); border: 1px solid rgba(245,158,11,0.3); }
+  .tag-blue { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .tag-purple { background: rgba(124,58,237,0.15); color: var(--accent2); border: 1px solid rgba(124,58,237,0.3); }
+
+  /* SIMULATOR */
+  .sim-result {
+    background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(59,130,246,0.1));
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 16px;
+  }
+
+  /* TOOLTIP */
+  .tooltip {
+    position: relative;
+  }
+  .tooltip:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e1e2e;
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .game-selector { flex-direction: column; }
+    .gen-options { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .app { padding: 12px; }
+  }
+
+  /* CHART CANVAS */
+  .chart-container { position: relative; width: 100%; height: 260px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">💰</div>
+      <!--
+      <div class="logo-icon">🎯</div>
+    -->
+      <div>
+        <h1>Loto<span>Stats</span>AI</h1>
+        <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;">Análise Estatística de Loterias IA</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Aguardando dados...</span>
+    </div>
+  </header>
+<!--  (c) E d u P i t h a n - e d u p i t h a n @ g m a i l . c o m --> 
+  <!-- GAME SELECTOR -->
+  <div class="game-selector">
+    <button class="game-btn mega active" id="btnMega">
+      <span style="font-size:28px">🍀</span>
+      <div>
+        <div>Mega-Sena</div>
+        <div style="font-size:12px;color:var(--muted);font-weight:400;">6 dezenas de 01 a 60</div>
+      </div>
+      <span class="game-badge">MEGA</span>
+    </button>
+    <button class="game-btn loto" id="btnLoto">
+      <span style="font-size:28px">🎰</span>
+      <div>
+        <div>Lotomania</div>
+        <div style="font-size:12px;color:var(--muted);font-weight:400;">20 dezenas de 00 a 99</div>
+      </div>
+      <span class="game-badge">LOTO</span>
+    </button>
+    <button class="game-btn facil" id="btnFacil">
+      <span style="font-size:28px">🎲</span>
+      <div>
+        <div>Lotofácil</div>
+        <div style="font-size:12px;color:var(--muted);font-weight:400;">15 dezenas de 01 a 25</div>
+      </div>
+      <span class="game-badge">FÁCIL</span>
+    </button>
+  </div>
+
+  <!-- LOAD SECTION -->
+  <div class="load-section">
+    <div class="load-info">
+      <h3 id="loadTitle">📡 Carregar Resultados via API Oficial</h3>
+      <p id="loadDesc">Busca dados da API da Caixa Econômica Federal (loteriascaixa.com.br)</p>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:11px;color:var(--muted)">Sorteios</label>
+        <select id="limitSelect" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:13px;cursor:pointer;">
+          <option value="50">Últimos 50</option>
+          <option value="100" selected>Últimos 100</option>
+          <option value="200">Últimos 200</option>
+          <option value="500">Últimos 500</option>
+          <option value="0">Todos (pode demorar)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="loadBtn">
+        <div class="loading-spinner" id="loadSpinner"></div>
+        <span id="loadBtnText">⬇ Carregar Dados</span>
+      </button>
+      <button class="btn btn-ghost" id="csvBtn">
+        📁 Importar CSV
+      </button>
+      <input type="file" id="csvInput" accept=".csv" style="display:none">
+      <button class="btn btn-ghost" onclick="generateMockData()" id="mockBtn">
+        🎲 Demo (Offline)
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN TABS -->
+  <div class="nav-tabs" id="mainTabs" style="display:none">
+    <button class="nav-tab active" onclick="showTab('overview')">📊 Visão Geral</button>
+    <button class="nav-tab" onclick="showTab('frequency')">📈 Frequência</button>
+    <button class="nav-tab" onclick="showTab('heatmap')">🔥 Heatmap</button>
+    <button class="nav-tab" onclick="showTab('delay')">⏱ Atraso</button>
+    <button class="nav-tab" onclick="showTab('pairs')">🔗 Pares/Trios</button>
+    <button class="nav-tab" onclick="showTab('patterns')">🔬 Padrões</button>
+    <button class="nav-tab" onclick="showTab('generator')">⚡ Gerador IA</button>
+    <button class="nav-tab" onclick="showTab('simulator')">🎮 Simulador</button>
+    <button class="nav-tab" onclick="showTab('history')">📋 Histórico</button>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div id="contentArea">
+    <div class="empty-state">
+      <div class="icon">🎯</div>
+      <h3>Bem-vindo ao LotoStatsAI</h3>
+      <p>Carregue os dados da loteria para iniciar a análise estatística</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  game: 'megasena',
+  draws: [],
+  stats: null,
+  myGames: JSON.parse(localStorage.getItem('myGames') || '[]'),
+  loading: false
+};
+
+const GAME_CONFIG = {
+  megasena:  { min: 1,  max: 60,  pick: 6,  label: 'Mega-Sena',  apiId: 'megasena',  ballClass: 'ball-mega', color: '#2196F3' },
+  lotomania: { min: 0,  max: 99,  pick: 20, label: 'Lotomania',  apiId: 'lotomania', ballClass: 'ball-loto', color: '#FF6B00' },
+  lotofacil: { min: 1,  max: 25,  pick: 15, label: 'Lotofácil',  apiId: 'lotofacil', ballClass: 'ball-gen', color: '#10b981' }
+};
+
+// ============================================================
+// GAME SELECTION
+// ============================================================
+function selectGame(g) {
+  state.game = g;
+  state.draws = [];
+  state.stats = null;
+  document.getElementById('btnMega').classList.toggle('active', g === 'megasena');
+  document.getElementById('btnLoto').classList.toggle('active', g === 'lotomania');
+  document.getElementById('btnFacil').classList.toggle('active', g === 'lotofacil');
+  document.getElementById('btnMega').classList.toggle('mega', true);
+  document.getElementById('btnLoto').classList.toggle('loto', true);
+  document.getElementById('btnFacil').classList.toggle('facil', true);
+  document.getElementById('mainTabs').style.display = 'none';
+  document.getElementById('contentArea').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">${g === 'megasena' ? '🍀' : g === 'lotofacil' ? '🎲' : '🎰'}</div>
+      <h3>${GAME_CONFIG[g].label} selecionada</h3>
+      <p>Clique em "Carregar Dados" para buscar os resultados</p>
+    </div>`;
+  setStatus('Aguardando dados...', false);
+}
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+async function loadData() {
+  if (state.loading) return;
+  state.loading = true;
+
+  const cfg = GAME_CONFIG[state.game];
+  const limit = parseInt(document.getElementById('limitSelect').value);
+  const btn = document.getElementById('loadBtn');
+  const spinner = document.getElementById('loadSpinner');
+  const btnText = document.getElementById('loadBtnText');
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Carregando...';
+  setStatus('Buscando dados...', true);
+
+  document.getElementById('progressBar').style.display = 'block';
+  setProgress(10);
+
+  try {
+    // ─── ESTRATÉGIA DE APIs (em ordem de prioridade) ───────────────────────
+    // 1. api.guidi.dev.br  — proxy independente, gratuito, sem CORS
+    // 2. servicebus2.caixa.gov.br via allorigins.win (proxy CORS público)
+    // 3. Erro amigável com instruções
+
+    const guidiBase   = `https://api.guidi.dev.br/loteria/${cfg.apiId}`;
+    const caixaBase   = `https://servicebus2.caixa.gov.br/portaldeloterias/api/${cfg.apiId}`;
+    const corsProxy   = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+
+    // ── 1. Descobrir último concurso ───────────────────────────────────────
+    let latestContest = 0;
+    let apiMode = null; // 'guidi' | 'caixa'
+
+    // Tenta guidi primeiro
+    try {
+      const r = await fetchWithTimeout(`${guidiBase}/ultimo`, 6000);
+      if (r.ok) {
+        const d = await r.json();
+        latestContest = d.concurso || d.numero || 0;
+        if (latestContest) apiMode = 'guidi';
+      }
+    } catch(e) { console.warn('guidi /ultimo falhou:', e.message); }
+
+    // Fallback: caixa via proxy CORS
+    if (!latestContest) {
+      try {
+        const r = await fetchWithTimeout(corsProxy(caixaBase), 8000);
+        if (r.ok) {
+          const d = await r.json();
+          latestContest = d.concurso || d.numero || 0;
+          if (latestContest) apiMode = 'caixa';
+        }
+      } catch(e) { console.warn('caixa proxy falhou:', e.message); }
+    }
+
+    if (!latestContest) {
+      throw new Error(
+        'Nenhuma API disponível no momento.\n\n' +
+        '💡 Dica: Use o botão "🎲 Demo (Offline)" para explorar o app com dados simulados realistas.\n\n' +
+        'Ou tente novamente em alguns instantes — as APIs externas podem estar sobrecarregadas.'
+      );
+    }
+
+    setProgress(20);
+    document.getElementById('loadDesc').textContent =
+      `Usando: ${apiMode === 'guidi' ? 'api.guidi.dev.br ✅' : 'servicebus2.caixa.gov.br (via proxy) ✅'} — Concurso mais recente: #${latestContest}`;
+
+    // ── 2. Buscar histórico ────────────────────────────────────────────────
+    const toFetch = limit === 0 ? latestContest : Math.min(limit, latestContest);
+    const start   = latestContest - toFetch + 1;
+    const draws   = [];
+    const batchSize = 8;
+    let fetched = 0;
+
+    for (let i = latestContest; i >= start; i -= batchSize) {
+      const batch = [];
+      for (let j = i; j > Math.max(i - batchSize, start - 1); j--) {
+        batch.push(fetchDrawSmart(apiMode, cfg.apiId, j, guidiBase, caixaBase, corsProxy));
+      }
+      const results = await Promise.allSettled(batch);
+      results.forEach(r => { if (r.status === 'fulfilled' && r.value) draws.push(r.value); });
+
+      fetched += batchSize;
+      setProgress(20 + Math.min((fetched / toFetch) * 75, 75));
+      // Pequena pausa para não sobrecarregar a API
+      await sleep(150);
+    }
+
+    if (draws.length === 0) throw new Error('Nenhum dado foi retornado pelas APIs.');
+
+    draws.sort((a, b) => b.concurso - a.concurso);
+    state.draws = draws;
+    finishLoad();
+
+  } catch (err) {
+    console.error(err);
+    // Mensagem amigável em modal
+    showErrorModal(err.message);
+    setStatus('Erro ao carregar', false);
+  } finally {
+    state.loading = false;
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    btnText.textContent = '⬇ Carregar Dados';
+    setProgress(0);
+    document.getElementById('progressBar').style.display = 'none';
+  }
+}
+
+// ── Helpers de fetch ────────────────────────────────────────────────────────
+function fetchWithTimeout(url, ms = 8000) {
+  // AbortController nao pode ser clonado em iframes (Claude artifacts)
+  // Usamos Promise.race com um timeout manual
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), ms)
+  );
+  return Promise.race([fetch(url), timeout]);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function fetchDrawSmart(mode, game, num, guidiBase, caixaBase, corsProxy) {
+  // Tenta o modo primário
+  try {
+    if (mode === 'guidi') {
+      const r = await fetchWithTimeout(`${guidiBase}/${num}`, 5000);
+      if (r.ok) { const d = await r.json(); return normalizeDraw(d, game); }
+    } else {
+      const r = await fetchWithTimeout(corsProxy(`${caixaBase}/${num}`), 6000);
+      if (r.ok) { const d = await r.json(); return normalizeDraw(d, game); }
+    }
+  } catch(e) {}
+  // Fallback silencioso
+  try {
+    if (mode === 'guidi') {
+      const r = await fetchWithTimeout(corsProxy(`${caixaBase}/${num}`), 6000);
+      if (r.ok) { const d = await r.json(); return normalizeDraw(d, game); }
+    } else {
+      const r = await fetchWithTimeout(`${guidiBase}/${num}`, 5000);
+      if (r.ok) { const d = await r.json(); return normalizeDraw(d, game); }
+    }
+  } catch(e) {}
+  return null;
+}
+<!--  (c) E d u P i t h a n - e d u p i t h a n @ g m a i l . c o m --> 
+// Modal de erro amigável
+function showErrorModal(msg) {
+  const existing = document.getElementById('errorModal');
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.id = 'errorModal';
+  div.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;
+    display:flex;align-items:center;justify-content:center;padding:20px;`;
+  div.innerHTML = `
+    <div style="background:#181824;border:1px solid #ef4444;border-radius:20px;padding:32px;max-width:480px;width:100%">
+      <div style="font-size:36px;margin-bottom:12px">⚠️</div>
+      <h3 style="font-size:18px;font-weight:800;margin-bottom:12px;color:#ef4444">Não foi possível conectar</h3>
+      <p style="font-size:13px;color:#aaa;line-height:1.6;white-space:pre-line;margin-bottom:20px">${msg}</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="document.getElementById('errorModal').remove();generateMockData()"
+          style="flex:1;padding:12px;background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;border-radius:10px;color:white;font-family:Syne,sans-serif;font-weight:700;font-size:14px;cursor:pointer">
+          🎲 Usar Demo Offline
+        </button>
+        <button onclick="document.getElementById('errorModal').remove()"
+          style="padding:12px 20px;background:#252535;border:1px solid #333;border-radius:10px;color:#aaa;font-family:Syne,sans-serif;font-weight:600;font-size:14px;cursor:pointer">
+          Fechar
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+}
+
+function normalizeDraw(d, game) {
+  const raw = d.dezenas || d.numeros || d.dezenasSorteadasOrdemSorteio || [];
+  const dezenas = raw.map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+  const premio = d.premiacoes
+    ? (d.premiacoes[0]?.valorPremio || d.premiacoes[0]?.premio || 0)
+    : (d.valorEstimadoProximoConcurso || 0);
+  return {
+    concurso: d.concurso || d.numero || 0,
+    data: d.dataApuracao || d.data || d.dataSorteio || "",
+    dezenas: dezenas.sort((a, b) => a - b),
+    acumulado: d.acumulado || d.acumulouPremio || false,
+    premio
+  };
+}
+
+// ============================================================
+// CSV IMPORT
+// ============================================================
+function handleCSVFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const csv = e.target.result;
+      const draws = parseCSV(csv, state.game);
+      if (draws.length === 0) {
+        setStatus('CSV inválido ou vazio', true);
+        return;
+      }
+      
+      // Debug: mostrar informações sobre os dados parseados
+      console.log('Dados parseados do CSV:', draws);
+      console.log('Primeiro sorteio:', draws[0]);
+      console.log('Último sorteio:', draws[draws.length - 1]);
+      console.log('Total de sorteios:', draws.length);
+      
+      state.draws = draws.sort((a, b) => b.concurso - a.concurso);
+      finishLoad();
+      setStatus(`${draws.length} sorteios carregados do CSV`, false);
+    } catch (err) {
+      setStatus(`Erro ao parsear CSV: ${err.message}`, true);
+      console.error('Erro no parse do CSV:', err);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function parseCSV(csv, game) {
+  const lines = csv.trim().split('\n');
+  if (lines.length < 2) return [];
+
+  // Detectar separador automaticamente (vírgula ou ponto e vírgula)
+  const firstLine = lines[0];
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  const separator = semicolonCount > commaCount ? ';' : ',';
+  
+  console.log('Separador detectado:', separator === ';' ? 'ponto e vírgula' : 'vírgula');
+
+  const header = firstLine.toLowerCase().split(separator).map(h => h.trim());
+  const draws = [];
+
+  console.log('Headers detectados:', header);
+
+  // Labels para detectar colunas de dezenas
+  const dezenasLabels = ['dezena', 'numero', 'num', 'ball', 'number', 'bola', 'sorteado', 'resultado'];
+
+  // Encontrar índices das colunas
+  const concursoIdx = header.findIndex(h => h.includes('concurso') || h.includes('numero') || h.includes('contest') || h === 'concurso' || h === 'numero');
+  
+  // Para dezenas, procurar por padrões mais específicos
+  const dezenasIdx = [];
+  const cfg = GAME_CONFIG[game];
+  const maxDezenas = cfg ? cfg.pick : 6; // padrão 6 para Mega Sena
+  
+  for (let i = 0; i < header.length; i++) {
+    const h = header[i];
+    // Pular a coluna do concurso
+    if (i === concursoIdx) continue;
+    
+    // Verificar se é uma coluna de dezena
+    if (dezenasLabels.some(label => h.includes(label)) || 
+        h.match(/^(dezena|numero|num|ball|bola|sorteado)\d+$/) || // dezena1, numero2, etc.
+        (h.match(/^\d+$/) && parseInt(h) >= cfg.min && parseInt(h) <= cfg.max)) { // headers numéricos no range
+      dezenasIdx.push(i);
+      if (dezenasIdx.length >= maxDezenas) break; // limitar ao número esperado
+    }
+  }
+
+  console.log('Índice da coluna concurso:', concursoIdx);
+  console.log('Índices das colunas de dezenas:', dezenasIdx);
+  console.log('Configuração do jogo:', cfg);
+  if (concursoIdx === -1 || dezenasIdx.length === 0) {
+    throw new Error('CSV deve conter coluna "concurso" e colunas de dezenas');
+  }
+
+  // Parse linhas
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const cols = line.split(separator).map(c => c.trim());
+    const concurso = parseInt(cols[concursoIdx], 10);
+    if (isNaN(concurso)) continue;
+
+    const dezenas = dezenasIdx
+      .map(idx => parseInt(cols[idx], 10))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+
+    if (dezenas.length > 0) {
+      draws.push({
+        concurso,
+        data: cols[header.findIndex(h => h.includes('data'))] || '',
+        dezenas,
+        acumulado: false,
+        premio: 0
+      });
+    }
+  }
+
+  console.log('Total de sorteios parseados:', draws.length);
+
+  return draws;
+}
+
+// ============================================================
+// MOCK DATA (DEMO MODE)
+// ============================================================
+function generateMockData() {
+  const cfg = GAME_CONFIG[state.game];
+  const draws = [];
+  const total = 200;
+
+  // Use weighted random to simulate realistic frequency
+  const weights = {};
+  for (let i = cfg.min; i <= cfg.max; i++) weights[i] = 1;
+  // Make some numbers "hotter"
+  const hotNums = [10, 23, 37, 4, 53, 42, 5, 17, 39, 61, 7, 28, 45, 11, 99].filter(n => n >= cfg.min && n <= cfg.max);
+  hotNums.forEach(n => { weights[n] = 2.5; });
+
+  for (let i = 0; i < total; i++) {
+    const dezenas = weightedSample(cfg.min, cfg.max, cfg.pick, weights);
+    dezenas.sort((a, b) => a - b);
+
+    const d = new Date();
+    d.setDate(d.getDate() - i * 3);
+
+    draws.push({
+      concurso: 2800 - i,
+      data: d.toLocaleDateString('pt-BR'),
+      dezenas,
+      acumulado: Math.random() < 0.3,
+      premio: Math.round(Math.random() * 50000000 + 5000000)
+    });
+  }
+
+  state.draws = draws;
+  finishLoad();
+}
+
+function weightedSample(min, max, n, weights) {
+  const nums = [];
+  const pool = Object.keys(weights).map(Number);
+  const w = pool.map(k => weights[k]);
+
+  while (nums.length < n) {
+    const idx = weightedRandom(w);
+    const v = pool[idx];
+    if (!nums.includes(v)) nums.push(v);
+  }
+  return nums;
+}
+
+function weightedRandom(weights) {
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return i;
+  }
+  return weights.length - 1;
+}
+<!--  (c) E d u P i t h a n - e d u p i t h a n @ g m a i l . c o m --> 
+// ============================================================
+// PROCESS DATA
+// ============================================================
+function finishLoad() {
+  const cfg = GAME_CONFIG[state.game];
+  state.stats = computeStats(state.draws, cfg);
+
+  setStatus(`${state.draws.length} sorteios carregados`, false);
+  document.getElementById('statusDot').style.background = 'var(--green)';
+
+  document.getElementById('mainTabs').style.display = 'flex';
+  showTab('overview');
+}
+
+function computeStats(draws, cfg) {
+  const freq = {};
+  const lastSeen = {};
+  const pairFreq = {};
+  const trioFreq = {};
+  const rangeFreq = {};
+  const consecutiveCount = {};
+  const sumDist = [];
+
+  let evenCount = 0;
+  let oddCount = 0;
+  let totalDezenas = 0;
+
+  for (let i = cfg.min; i <= cfg.max; i++) {
+    freq[i] = 0;
+    lastSeen[i] = draws.length;
+  }
+
+  for (let idx = 0; idx < draws.length; idx++) {
+    const d = [...(draws[idx].dezenas || [])].sort((a, b) => a - b);
+    if (!d.length) continue;
+
+    // Range distribution (by first number)
+    const rangeKey = Math.floor((d[0] - cfg.min) / 10);
+    rangeFreq[rangeKey] = (rangeFreq[rangeKey] || 0) + 1;
+
+    // Pair and trio frequency
+    for (let i = 0; i < d.length; i++) {
+      for (let j = i + 1; j < d.length; j++) {
+        const key = `${d[i]}-${d[j]}`;
+        pairFreq[key] = (pairFreq[key] || 0) + 1;
+      }
+      for (let j = i + 1; j < d.length; j++) {
+        for (let k = j + 1; k < d.length; k++) {
+          const key = `${d[i]}-${d[j]}-${d[k]}`;
+          trioFreq[key] = (trioFreq[key] || 0) + 1;
+        }
+      }
+    }
+
+    // Consecutive count dentro do sorteio
+    let consec = 1;
+    let maxConsec = 1;
+    for (let i = 1; i < d.length; i++) {
+      if (d[i] === d[i - 1] + 1) {
+        consec++;
+        maxConsec = Math.max(maxConsec, consec);
+      } else {
+        consec = 1;
+      }
+    }
+    consecutiveCount[maxConsec] = (consecutiveCount[maxConsec] || 0) + 1;
+
+    // Estatísticas de cada número no sorteio
+    for (const n of d) {
+      if (typeof n !== 'number' || Number.isNaN(n)) continue;
+      freq[n] = (freq[n] || 0) + 1;
+      totalDezenas++;
+      if (n % 2 === 0) evenCount++; else oddCount++;
+
+      // delay: se número já apareceu anteriormente, calculamos gap
+      if (lastSeen[n] !== draws.length) {
+        sumDist.push(lastSeen[n] - idx - 1);
+      }
+      lastSeen[n] = idx;
+    }
+  }
+
+  const delay = {};
+  for (let i = cfg.min; i <= cfg.max; i++) {
+    delay[i] = lastSeen[i] === draws.length ? draws.length : lastSeen[i];
+  }
+
+  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+  const maxFreq = sorted[0]?.[1] || 1;
+
+  const topPairs = Object.entries(pairFreq).sort((a, b) => b[1] - a[1]).slice(0, 30);
+  const topTrios = Object.entries(trioFreq).sort((a, b) => b[1] - a[1]).slice(0, 20);
+
+  const avgSum = sumDist.length ? sumDist.reduce((a, b) => a + b, 0) / sumDist.length : 0;
+  const minSum = sumDist.length ? Math.min(...sumDist) : 0;
+  const maxSum = sumDist.length ? Math.max(...sumDist) : 0;
+
+  return {
+    freq,
+    sorted,
+    maxFreq,
+    delay,
+    evenCount,
+    oddCount,
+    totalDezenas,
+    topPairs,
+    topTrios,
+    sumDist,
+    avgSum,
+    minSum,
+    maxSum,
+    rangeFreq,
+    consecutiveCount,
+    totalDraws: draws.length
+  };
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function showTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach((t, i) => {
+    const tabs = ['overview','frequency','heatmap','delay','pairs','patterns','generator','simulator','history'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+
+  const content = document.getElementById('contentArea');
+
+  switch(tab) {
+    case 'overview':   renderOverview(content);   break;
+    case 'frequency':  renderFrequency(content);  break;
+    case 'heatmap':    renderHeatmap(content);    break;
+    case 'delay':      renderDelay(content);      break;
+    case 'pairs':      renderPairs(content);      break;
+    case 'patterns':   renderPatterns(content);   break;
+    case 'generator':  renderGenerator(content);  break;
+    case 'simulator':  renderSimulator(content);  break;
+    case 'history':    renderHistory(content);    break;
+  }
+}
+
+// ============================================================
+// OVERVIEW
+// ============================================================
+function renderOverview(el) {
+  const { stats } = state;
+  const cfg = GAME_CONFIG[state.game];
+  const draws = state.draws;
+  const top6 = stats.sorted.slice(0, 6);
+  const bottom6 = stats.sorted.slice(-6).reverse();
+  const hottest = top6[0];
+  const coldest = stats.sorted[stats.sorted.length - 1];
+  const evenPct = ((stats.evenCount / stats.totalDezenas) * 100).toFixed(1);
+  const oddPct = (100 - parseFloat(evenPct)).toFixed(1);
+  const latest = draws[0];
+
+  el.innerHTML = `
+    <div class="grid-4">
+      <div class="card">
+        <h3>📋 Total Sorteios</h3>
+        <div class="stat-value" style="color:var(--blue)">${stats.totalDraws}</div>
+        <div class="stat-sub">Concurso ${draws[draws.length-1]?.concurso || '?'} → ${draws[0]?.concurso || '?'}</div>
+      </div>
+      <div class="card">
+        <h3>🔥 Nº Mais Sorteado</h3>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+          <div class="ball ${cfg.ballClass}" style="width:48px;height:48px;font-size:16px;">${String(hottest[0]).padStart(cfg.min===0?2:2,'0')}</div>
+          <div>
+            <div class="stat-value" style="font-size:28px;color:var(--red)">${hottest[1]}x</div>
+            <div class="stat-sub">${((hottest[1]/stats.totalDraws)*100).toFixed(1)}% dos sorteios</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>❄️ Nº Menos Sorteado</h3>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+          <div class="ball ball-cold" style="width:48px;height:48px;font-size:16px;">${String(coldest[0]).padStart(2,'0')}</div>
+          <div>
+            <div class="stat-value" style="font-size:28px;color:var(--blue)">${coldest[1]}x</div>
+            <div class="stat-sub">${((coldest[1]/stats.totalDraws)*100).toFixed(1)}% dos sorteios</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>⚖️ Pares / Ímpares</h3>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <div style="flex:1">
+            <div class="stat-value" style="font-size:22px;color:var(--gold)">${evenPct}%</div>
+            <div class="stat-sub">Pares (${stats.evenCount})</div>
+          </div>
+          <div style="flex:1">
+            <div class="stat-value" style="font-size:22px;color:var(--accent2)">${oddPct}%</div>
+            <div class="stat-sub">Ímpares (${stats.oddCount})</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>🏆 Top 6 — Mais Sorteados</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+          ${top6.map((n,i) => `
+            <div class="freq-item">
+              <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;width:16px">${i+1}</div>
+              <div class="ball ${cfg.ballClass} ball-sm">${String(n[0]).padStart(2,'0')}</div>
+              <div class="freq-bar-wrap">
+                <div class="freq-bar" style="width:${(n[1]/stats.maxFreq*100).toFixed(1)}%;background:linear-gradient(90deg,#ef4444,#f97316)">
+                  <span class="freq-bar-label">${n[1]}x</span>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🥶 Bottom 6 — Menos Sorteados</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+          ${bottom6.map((n,i) => `
+            <div class="freq-item">
+              <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;width:16px">${i+1}</div>
+              <div class="ball ball-cold ball-sm">${String(n[0]).padStart(2,'0')}</div>
+              <div class="freq-bar-wrap">
+                <div class="freq-bar" style="width:${(n[1]/stats.maxFreq*100).toFixed(1)}%;background:linear-gradient(90deg,#0277bd,#29b6f6)">
+                  <span class="freq-bar-label">${n[1]}x</span>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px">
+      <h3>🎲 Último Sorteio — Concurso ${latest?.concurso || '-'} (${latest?.data || '-'})</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+        ${latest?.dezenas.map(n => `<div class="ball ${cfg.ballClass}" style="width:44px;height:44px;font-size:15px;">${String(n).padStart(2,'0')}</div>`).join('') || 'Sem dados'}
+        ${latest?.acumulado ? '<span class="tag tag-gold" style="margin-left:12px">ACUMULADO</span>' : ''}
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>📊 Soma das Dezenas</h3>
+        <div style="margin-top:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+            <div><div class="stat-value" style="font-size:22px;color:var(--green)">${stats.avgSum.toFixed(0)}</div><div class="stat-sub">Média</div></div>
+            <div><div class="stat-value" style="font-size:22px;color:var(--blue)">${stats.minSum}</div><div class="stat-sub">Mínimo</div></div>
+            <div><div class="stat-value" style="font-size:22px;color:var(--red)">${stats.maxSum}</div><div class="stat-sub">Máximo</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>🔗 Par Mais Frequente</h3>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+          ${stats.topPairs[0]?.[0].split('-').map(n => `<div class="ball ${cfg.ballClass}">${String(n).padStart(2,'0')}</div>`).join('<span style="color:var(--muted)">+</span>') || '-'}
+          <span class="tag tag-gold" style="margin-left:4px">${stats.topPairs[0]?.[1] || 0}x</span>
+        </div>
+        <div class="stat-sub" style="margin-top:8px">Saíram juntos ${((stats.topPairs[0]?.[1]||0)/stats.totalDraws*100).toFixed(1)}% das vezes</div>
+      </div>
+      <div class="card">
+        <h3>➰ Máx. Sequência Consec.</h3>
+        <div style="margin-top:8px">
+          ${Object.entries(state.stats.consecutiveCount).sort((a,b)=>b[0]-a[0]).slice(0,3).map(([k,v]) => `
+            <div class="freq-item" style="margin-bottom:6px">
+              <div style="font-size:12px;font-family:'JetBrains Mono',monospace;min-width:80px;color:var(--text)">${k} consec.</div>
+              <div class="freq-bar-wrap">
+                <div class="freq-bar" style="width:${(v/stats.totalDraws*100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a855f7)">
+                  <span class="freq-bar-label">${v}x</span>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// FREQUENCY
+// ============================================================
+function renderFrequency(el) {
+  const cfg = GAME_CONFIG[state.game];
+  const sorted = [...state.stats.sorted].sort((a,b) => parseInt(a[0]) - parseInt(b[0]));
+  const max = state.stats.maxFreq;
+
+  el.innerHTML = `
+    <div class="section-title">📈 Frequência Completa <span class="tag tag-blue">${cfg.min}–${cfg.max}</span></div>
+    <div class="card" style="margin-bottom:24px">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px 14px" onclick="sortFreq('num')">🔢 Por Número</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px 14px" onclick="sortFreq('desc')">🔽 Mais Sorteados</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px 14px" onclick="sortFreq('asc')">🔼 Menos Sorteados</button>
+      </div>
+      <div class="freq-list" id="freqList">
+        ${renderFreqItems(sorted, max, cfg)}
+      </div>
+    </div>`;
+}
+
+function renderFreqItems(sorted, max, cfg) {
+  return sorted.map(([num, count]) => {
+    const pct = (count / max * 100).toFixed(1);
+    const isHot = count >= max * 0.7;
+    const isCold = count <= max * 0.35;
+    const ballC = isHot ? 'ball-hot' : isCold ? 'ball-cold' : cfg.ballClass;
+    const barColor = isHot ? 'linear-gradient(90deg,#c62828,#ef5350)' : isCold ? 'linear-gradient(90deg,#0277bd,#29b6f6)' : `linear-gradient(90deg,${cfg.color}99,${cfg.color})`;
+    return `
+      <div class="freq-item">
+        <div class="ball ${ballC} ball-sm">${String(num).padStart(2,'0')}</div>
+        <div class="freq-bar-wrap">
+          <div class="freq-bar" style="width:${pct}%;${isHot||isCold?'':''}background:${barColor}">
+            <span class="freq-bar-label">${count}x</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;min-width:38px;text-align:right">${((count/state.stats.totalDraws)*100).toFixed(1)}%</div>
+      </div>`;
+  }).join('');
+}
+
+window.sortFreq = function(mode) {
+  const cfg = GAME_CONFIG[state.game];
+  let sorted = [...state.stats.sorted];
+  if (mode === 'num') sorted.sort((a,b) => parseInt(a[0])-parseInt(b[0]));
+  else if (mode === 'desc') sorted.sort((a,b) => b[1]-a[1]);
+  else sorted.sort((a,b) => a[1]-b[1]);
+  document.getElementById('freqList').innerHTML = renderFreqItems(sorted, state.stats.maxFreq, cfg);
+};
+
+// ============================================================
+// HEATMAP
+// ============================================================
+function renderHeatmap(el) {
+  const cfg = GAME_CONFIG[state.game];
+  const { freq, maxFreq } = state.stats;
+  const cols = cfg.max <= 60 ? 10 : 10;
+  const total = cfg.max - cfg.min + 1;
+
+  const cells = [];
+  for (let n = cfg.min; n <= cfg.max; n++) {
+    const f = freq[n] || 0;
+    const ratio = f / maxFreq;
+    const r = Math.round(255 * ratio);
+    const b = Math.round(255 * (1 - ratio));
+    const g = Math.round(100 * (1 - Math.abs(ratio - 0.5) * 2));
+    const bg = `rgb(${r},${g},${b})`;
+    const tc = ratio > 0.5 ? 'white' : '#ccc';
+    cells.push(`<div class="heatmap-cell tooltip" style="background:${bg};color:${tc}" data-tip="${String(n).padStart(2,'0')}: ${f}x sorteado">${String(n).padStart(2,'0')}</div>`);
+  }
+
+  el.innerHTML = `
+    <div class="section-title">🔥 Mapa de Calor das Dezenas</div>
+    <div class="card" style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:60px;height:14px;border-radius:4px;background:linear-gradient(90deg,rgb(0,50,255),rgb(0,200,0),rgb(255,50,0))"></div>
+          <span style="font-size:11px;color:var(--muted)">Frio → Médio → Quente</span>
+        </div>
+      </div>
+      <div class="heatmap" style="grid-template-columns:repeat(${cols},1fr);max-width:${cols*52}px">
+        ${cells.join('')}
+      </div>
+    </div>
+    <div class="card">
+      <h3>📊 Frequência por Faixa (dezenas)</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        ${Object.entries(state.stats.rangeFreq).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([range, count]) => {
+          const label = cfg.min === 0 ? `${range}0–${parseInt(range)*10+9}` : `${parseInt(range)*10+1}–${parseInt(range)*10+10}`;
+          return `
+            <div class="freq-item">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;min-width:70px;color:var(--text)">${label}</div>
+              <div class="freq-bar-wrap">
+                <div class="freq-bar" style="width:${(count/state.stats.totalDraws/(cfg.pick/10)*100).toFixed(1)}%;background:linear-gradient(90deg,var(--accent),var(--blue))">
+                  <span class="freq-bar-label">${count}</span>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// DELAY
+// ============================================================
+function renderDelay(el) {
+  const cfg = GAME_CONFIG[state.game];
+  const { delay } = state.stats;
+
+  const items = Object.entries(delay).sort((a,b) => b[1]-a[1]);
+  const maxDelay = Math.max(...Object.values(delay));
+
+  el.innerHTML = `
+    <div class="section-title">⏱ Atraso — Dezenas que Não Saem</div>
+    <div class="card" style="margin-bottom:16px">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Quantos sorteios cada número está sem aparecer. Números com maior atraso têm maior "pressão estatística".
+      </p>
+      <div class="delay-grid">
+        ${items.map(([num, d]) => {
+          const ratio = d / maxDelay;
+          const color = ratio > 0.7 ? 'var(--red)' : ratio > 0.4 ? 'var(--gold)' : 'var(--green)';
+          return `
+            <div class="delay-item" style="border-color:${ratio>0.7?'var(--red)':ratio>0.4?'var(--gold)':'var(--border)'}">
+              <div class="ball ${cfg.ballClass} ball-sm" style="margin:0 auto">${String(num).padStart(2,'0')}</div>
+              <span class="delay-val" style="color:${color}">${d === state.stats.totalDraws ? '???+' : d+'x'}</span>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="card">
+        <h3 style="color:var(--red)">🚨 Maior Atraso (Top 10)</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          ${items.slice(0,10).map(([n]) => `<div class="ball ball-hot ball-sm">${String(n).padStart(2,'0')}</div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--gold)">⚡ Saíram Recentemente</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          ${items.slice(-10).map(([n]) => `<div class="ball ${cfg.ballClass} ball-sm">${String(n).padStart(2,'0')}</div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <h3>📊 Atraso Médio</h3>
+        <div class="stat-value" style="color:var(--accent2)">${(Object.values(delay).reduce((a,b)=>a+b,0)/Object.keys(delay).length).toFixed(1)}</div>
+        <div class="stat-sub">sorteios de atraso médio</div>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// PAIRS
+// ============================================================
+function renderPairs(el) {
+  const cfg = GAME_CONFIG[state.game];
+
+  el.innerHTML = `
+    <div class="section-title">🔗 Pares e Trios Mais Frequentes</div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>TOP 20 — PARES</h3>
+        <div class="pairs-grid" style="margin-top:8px">
+          ${state.stats.topPairs.slice(0,20).map(([key, count]) => {
+            const [a,b] = key.split('-');
+            return `
+              <div class="pair-item">
+                <div class="ball ${cfg.ballClass} ball-sm">${String(a).padStart(2,'0')}</div>
+                <div class="ball ${cfg.ballClass} ball-sm">${String(b).padStart(2,'0')}</div>
+                <span class="pair-count">${count}x</span>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <h3>TOP 15 — TRIOS</h3>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+          ${state.stats.topTrios.slice(0,15).map(([key, count]) => {
+            const nums = key.split('-');
+            return `
+              <div class="pair-item" style="flex-wrap:wrap">
+                ${nums.map(n => `<div class="ball ${cfg.ballClass} ball-sm">${String(n).padStart(2,'0')}</div>`).join('')}
+                <span class="pair-count">${count}x</span>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// PATTERNS
+// ============================================================
+function renderPatterns(el) {
+  const { stats } = state;
+  const cfg = GAME_CONFIG[state.game];
+  const draws = state.draws;
+
+  // Even/Odd distribution
+  const eoMap = {};
+  draws.forEach(d => {
+    const evens = d.dezenas.filter(n => n%2===0).length;
+    eoMap[evens] = (eoMap[evens]||0)+1;
+  });
+
+  // Sum buckets
+  const bucketSize = cfg.max <= 60 ? 30 : 50;
+  const sumBuckets = {};
+  stats.sumDist.forEach(s => {
+    const b = Math.floor(s/bucketSize)*bucketSize;
+    sumBuckets[b] = (sumBuckets[b]||0)+1;
+  });
+
+  el.innerHTML = `
+    <div class="section-title">🔬 Padrões Estatísticos</div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>⚖️ DISTRIBUIÇÃO PARES × ÍMPARES POR SORTEIO</h3>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+          ${Object.entries(eoMap).sort((a,b)=>b[1]-a[1]).map(([evens, count]) => {
+            const odds = cfg.pick - parseInt(evens);
+            return `
+              <div class="freq-item">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:12px;min-width:80px">${evens}P / ${odds}I</div>
+                <div class="freq-bar-wrap">
+                  <div class="freq-bar" style="width:${(count/stats.totalDraws*100).toFixed(1)}%;background:linear-gradient(90deg,var(--gold),var(--red))">
+                    <span class="freq-bar-label">${count}x</span>
+                  </div>
+                </div>
+                <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">${(count/stats.totalDraws*100).toFixed(1)}%</span>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <h3>➕ DISTRIBUIÇÃO DA SOMA DAS DEZENAS</h3>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+          ${Object.entries(sumBuckets).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([b, count]) => `
+            <div class="freq-item">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;min-width:90px">${b}–${parseInt(b)+bucketSize-1}</div>
+              <div class="freq-bar-wrap">
+                <div class="freq-bar" style="width:${(count/stats.totalDraws*100).toFixed(1)}%;background:linear-gradient(90deg,var(--accent),var(--blue))">
+                  <span class="freq-bar-label">${count}x</span>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>➰ SEQUÊNCIAS CONSECUTIVAS</h3>
+        <div style="margin-top:10px">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Maior sequência de números consecutivos por sorteio</p>
+          ${Object.entries(stats.consecutiveCount).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([k,v]) => `
+            <div class="freq-item" style="margin-bottom:6px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;min-width:90px">${k} consec.</div>
+              <div class="freq-bar-wrap">
+                <div class="freq-bar" style="width:${(v/stats.totalDraws*100).toFixed(1)}%;background:linear-gradient(90deg,#4a1d96,#7c3aed)">
+                  <span class="freq-bar-label">${v}x (${(v/stats.totalDraws*100).toFixed(0)}%)</span>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <h3>📐 ESTATÍSTICAS GERAIS</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+          <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">SOMA MÉDIA</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--green)">${stats.avgSum.toFixed(0)}</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">DESVIO PADRÃO SOMA</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--blue)">${calcStd(stats.sumDist).toFixed(1)}</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">% PARES (HISTÓRICO)</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--gold)">${((stats.evenCount/stats.totalDezenas)*100).toFixed(1)}%</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">MAIOR FREQ. ABS.</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--red)">${stats.maxFreq}x</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+<!--  (c) E d u P i t h a n - e d u p i t h a n @ g m a i l . c o m --> 
+function calcStd(arr) {
+  const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
+  return Math.sqrt(arr.reduce((a,b)=>a+(b-avg)**2,0)/arr.length);
+}
+
+// ============================================================
+// GENERATOR
+// ============================================================
+function renderGenerator(el) {
+  const cfg = GAME_CONFIG[state.game];
+
+  el.innerHTML = `
+    <div class="section-title">⚡ Gerador Inteligente <span class="tag tag-purple">IA Estatística</span></div>
+    <div class="generator-card">
+      <div class="gen-options">
+        <div class="option-group">
+          <label>Quantidade de jogos</label>
+          <select id="genQty">
+            <option value="1">1 jogo</option>
+            <option value="3" selected>3 jogos</option>
+            <option value="5">5 jogos</option>
+            <option value="10">10 jogos</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Estratégia</label>
+          <select id="genStrategy">
+            <option value="smart">🧠 Inteligente (Freq + Atraso)</option>
+            <option value="hot">🔥 Números Quentes</option>
+            <option value="cold">❄️ Números Frios</option>
+            <option value="mixed">🎭 Mistura Equilibrada</option>
+            <option value="pairs">🔗 Baseado em Pares</option>
+            <option value="random">🎲 Aleatório Puro</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Mín. números pares</label>
+          <select id="genMinEven">
+            <option value="0">Sem restrição</option>
+            ${Array.from({length: cfg.pick+1},(_,i)=>i).map(i=>`<option value="${i}" ${i===Math.floor(cfg.pick/2)-1?'selected':''}>${i} pares</option>`).join('')}
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Máx. números pares</label>
+          <select id="genMaxEven">
+            <option value="${cfg.pick}">Sem restrição</option>
+            ${Array.from({length: cfg.pick+1},(_,i)=>i).map(i=>`<option value="${i}" ${i===Math.ceil(cfg.pick/2)+1?'selected':''}>${i} pares</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:20px">
+        <h4 style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">Filtros Avançados</h4>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h4>Evitar combinações já sorteadas</h4>
+            <p>Remove jogos idênticos ao histórico</p>
+          </div>
+          <label class="toggle"><input type="checkbox" id="filterDups" checked><div class="toggle-slider"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h4>Incluir números em atraso alto</h4>
+            <p>Prioriza dezenas que estão sem sair há muitos sorteios</p>
+          </div>
+          <label class="toggle"><input type="checkbox" id="filterDelay" checked><div class="toggle-slider"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h4>Balancear faixas de números</h4>
+            <p>Distribui as dezenas entre os grupos (1-20, 21-40, etc.)</p>
+          </div>
+          <label class="toggle"><input type="checkbox" id="filterBalance"><div class="toggle-slider"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h4>Máximo de 3 consecutivos</h4>
+            <p>Evita sequências longas de números seguidos</p>
+          </div>
+          <label class="toggle"><input type="checkbox" id="filterConsec" checked><div class="toggle-slider"></div></label>
+        </div>
+      </div>
+
+      <button class="btn btn-gold" onclick="generateNumbers()" style="font-size:15px;padding:14px 32px">
+        ⚡ Gerar Jogos
+      </button>
+    </div>
+
+    <div id="genResults"></div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>💾 MEUS JOGOS SALVOS</h3>
+      <div id="savedGames" style="margin-top:12px">
+        ${renderSavedGames()}
+      </div>
+    </div>`;
+}
+
+function generateNumbers() {
+  const cfg = GAME_CONFIG[state.game];
+  const qty = parseInt(document.getElementById('genQty').value);
+  const strategy = document.getElementById('genStrategy').value;
+  const minEven = parseInt(document.getElementById('genMinEven').value);
+  const maxEven = parseInt(document.getElementById('genMaxEven').value);
+  const filterDups = document.getElementById('filterDups').checked;
+  const filterDelay = document.getElementById('filterDelay').checked;
+  const filterBalance = document.getElementById('filterBalance').checked;
+  const filterConsec = document.getElementById('filterConsec').checked;
+
+  const { freq, delay, topPairs } = state.stats;
+  const maxFreq = state.stats.maxFreq;
+  const maxDelay = Math.max(...Object.values(delay));
+
+  // Build weights per strategy
+  const buildWeights = () => {
+    const w = {};
+    for (let i = cfg.min; i <= cfg.max; i++) {
+      const f = freq[i] || 0;
+      const d = delay[i] || 0;
+      const fNorm = f / maxFreq;
+      const dNorm = d / maxDelay;
+
+      if (strategy === 'smart')  w[i] = 0.5 * fNorm + 0.5 * dNorm;
+      else if (strategy === 'hot')   w[i] = fNorm;
+      else if (strategy === 'cold')  w[i] = 1 - fNorm;
+      else if (strategy === 'mixed') w[i] = 0.3 * fNorm + 0.3 * dNorm + 0.4 * Math.random();
+      else if (strategy === 'random') w[i] = 1;
+      else if (strategy === 'pairs') {
+        // Boost numbers that appear in top pairs
+        let boost = fNorm;
+        topPairs.slice(0,20).forEach(([key]) => {
+          if (key.split('-').map(Number).includes(i)) boost += 0.3;
+        });
+        w[i] = boost;
+      }
+    }
+    return w;
+  };
+
+  const existingDraws = new Set(state.draws.map(d => d.dezenas.join(',')));
+
+  const games = [];
+  let attempts = 0;
+  const maxAttempts = 1000;
+
+  while (games.length < qty && attempts < maxAttempts) {
+    attempts++;
+    const w = buildWeights();
+    const nums = weightedSample(cfg.min, cfg.max, cfg.pick, w);
+    nums.sort((a,b) => a-b);
+
+    const evens = nums.filter(n => n%2===0).length;
+    if (evens < minEven || evens > maxEven) continue;
+    if (filterDups && existingDraws.has(nums.join(','))) continue;
+    if (filterConsec) {
+      let maxC = 1, c = 1;
+      for (let i = 1; i < nums.length; i++) {
+        if (nums[i] === nums[i-1]+1) { c++; maxC = Math.max(maxC, c); }
+        else c = 1;
+      }
+      if (maxC > 3) continue;
+    }
+    if (filterBalance) {
+      const ranges = {};
+      nums.forEach(n => { const r = Math.floor(n/(cfg.max/4)); ranges[r] = (ranges[r]||0)+1; });
+      if (Object.values(ranges).some(v => v > cfg.pick * 0.6)) continue;
+    }
+
+    games.push(nums);
+  }
+
+  const scoreGame = (nums) => {
+    const fScore = nums.reduce((s,n) => s + (freq[n]||0), 0) / (cfg.pick * state.stats.maxFreq);
+    const dScore = nums.reduce((s,n) => s + (delay[n]||0), 0) / (cfg.pick * maxDelay);
+    return ((fScore + dScore) / 2 * 100).toFixed(0);
+  };
+
+  const stratLabel = {
+    smart: '🧠 Inteligente',
+    hot: '🔥 Quentes',
+    cold: '❄️ Frios',
+    mixed: '🎭 Misto',
+    pairs: '🔗 Pares',
+    random: '🎲 Aleatório'
+  }[strategy];
+
+  const el = document.getElementById('genResults');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div class="generator-card">
+      <div class="gen-header">
+        <h2>${qty} Jogo${qty>1?'s':''} Gerado${qty>1?'s':''} — ${stratLabel}</h2>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="generateNumbers()">🔄 Regenerar</button>
+      </div>
+      <div class="gen-result">
+        ${games.map((g, i) => {
+          const score = scoreGame(g);
+          const evens = g.filter(n=>n%2===0).length;
+          const sum = g.reduce((a,b)=>a+b,0);
+          return `
+            <div>
+              <div class="gen-row">
+                <span class="gen-row-label">#${i+1}</span>
+                <div class="balls-row">
+                  ${g.map(n => `<div class="ball ball-gen">${String(n).padStart(2,'0')}</div>`).join('')}
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <span class="tag tag-blue" style="font-size:10px">Soma ${sum}</span>
+                  <span class="tag tag-green" style="font-size:10px">${evens}P/${cfg.pick-evens}I</span>
+                  <span class="tag tag-gold" style="font-size:10px">Score ${score}</span>
+                  <button class="btn btn-ghost" onclick="saveGame(${JSON.stringify(g)}, '${state.game}')" style="font-size:11px;padding:5px 10px">💾 Salvar</button>
+                </div>
+              </div>
+              ${i < games.length-1 ? '<div style="height:1px;background:var(--border);margin:8px 0"></div>' : ''}
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+window.saveGame = function(nums, game) {
+  state.myGames.push({ nums, game, date: new Date().toLocaleDateString('pt-BR'), id: Date.now() });
+  localStorage.setItem('myGames', JSON.stringify(state.myGames));
+  document.getElementById('savedGames').innerHTML = renderSavedGames();
+};
+
+function renderSavedGames() {
+  const cfg = GAME_CONFIG[state.game];
+  const games = state.myGames.filter(g => g.game === state.game);
+  if (!games.length) return '<p style="color:var(--muted);font-size:13px">Nenhum jogo salvo ainda.</p>';
+  return `<div style="display:flex;flex-direction:column;gap:10px;max-height:300px;overflow-y:auto">
+    ${games.map(g => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">${g.date}</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${g.nums.map(n => `<div class="ball ${cfg.ballClass} ball-sm">${String(n).padStart(2,'0')}</div>`).join('')}
+        </div>
+        <button onclick="deleteGame(${g.id})" style="margin-left:auto;background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:16px">🗑</button>
+      </div>`).join('')}
+  </div>`;
+}
+
+window.deleteGame = function(id) {
+  state.myGames = state.myGames.filter(g => g.id !== id);
+  localStorage.setItem('myGames', JSON.stringify(state.myGames));
+  document.getElementById('savedGames').innerHTML = renderSavedGames();
+};
+<!--  (c) E d u P i t h a n - e d u p i t h a n @ g m a i l . c o m --> 
+// ============================================================
+// SIMULATOR
+// ============================================================
+function renderSimulator(el) {
+  const cfg = GAME_CONFIG[state.game];
+
+  el.innerHTML = `
+    <div class="section-title">🎮 Simulador de Apostas</div>
+    <div class="generator-card">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">
+        Simule quanto você teria gasto e quantas vezes teria acertado apostando em jogos fixos pelos últimos N sorteios.
+      </p>
+      <div class="gen-options" style="margin-bottom:20px">
+        <div class="option-group">
+          <label>Sorteios para simular</label>
+          <select id="simDraws">
+            <option value="20">20 sorteios</option>
+            <option value="50" selected>50 sorteios</option>
+            <option value="100">100 sorteios</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Preço por jogo (R$)</label>
+          <input type="number" id="simPrice" value="${cfg.pick <= 6 ? 5.00 : 2.50}" min="1" step="0.50">
+        </div>
+        <div class="option-group">
+          <label>Estratégia dos jogos</label>
+          <select id="simStrategy">
+            <option value="smart">Inteligente</option>
+            <option value="hot">Números Quentes</option>
+            <option value="random">Aleatório</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label>Jogos por sorteio</label>
+          <select id="simQty">
+            <option value="1">1 jogo</option>
+            <option value="2" selected>2 jogos</option>
+            <option value="5">5 jogos</option>
+            <option value="10">10 jogos</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="runSimulation()" style="font-size:15px;padding:14px 32px">▶ Rodar Simulação</button>
+    </div>
+    <div id="simResults"></div>`;
+}
+
+window.runSimulation = function() {
+  const cfg = GAME_CONFIG[state.game];
+  const { freq, delay } = state.stats;
+  const nDraws = parseInt(document.getElementById('simDraws').value);
+  const price = parseFloat(document.getElementById('simPrice').value);
+  const strategy = document.getElementById('simStrategy').value;
+  const gamesPerDraw = parseInt(document.getElementById('simQty').value);
+
+  const draws = state.draws.slice(0, nDraws);
+  const totalCost = draws.length * gamesPerDraw * price;
+
+  let hits4 = 0, hits5 = 0, hits6 = 0;
+  const minHit = cfg.pick >= 20 ? 15 : 4;
+
+  // Generate fixed set of games for the simulation
+  const maxDelay = Math.max(...Object.values(delay));
+  const maxFreq = state.stats.maxFreq;
+  const buildW = () => {
+    const w = {};
+    for (let i = cfg.min; i <= cfg.max; i++) {
+      const f = (freq[i]||0)/maxFreq;
+      const d = (delay[i]||0)/maxDelay;
+      w[i] = strategy === 'smart' ? (f+d)/2 : strategy === 'hot' ? f : 1;
+    }
+    return w;
+  };
+
+  const myGames = Array.from({length: gamesPerDraw}, () => {
+    return weightedSample(cfg.min, cfg.max, cfg.pick, buildW()).sort((a,b)=>a-b);
+  });
+
+  draws.forEach(draw => {
+    myGames.forEach(g => {
+      const match = g.filter(n => draw.dezenas.includes(n)).length;
+      if (cfg.pick <= 6) {
+        if (match >= 4) hits4++;
+        if (match >= 5) hits5++;
+        if (match === 6) hits6++;
+      } else {
+        if (match >= 15) hits4++;
+        if (match >= 17) hits5++;
+        if (match >= 19) hits6++;
+      }
+    });
+  });
+
+  const prizeEstimate = hits4 * 1200 + hits5 * 60000 + hits6 * 500000;
+  const roi = ((prizeEstimate - totalCost) / totalCost * 100).toFixed(1);
+
+  document.getElementById('simResults').innerHTML = `
+    <div class="sim-result">
+      <h3 style="font-size:16px;margin-bottom:16px">📊 Resultado da Simulação</h3>
+      <div class="grid-4">
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">GASTO TOTAL</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--red)">R$ ${totalCost.toFixed(2)}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ACERTOS ${minHit}+</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--blue)">${hits4}x</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">PRÊMIO EST.</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--green)">R$ ${prizeEstimate.toLocaleString('pt-BR')}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ROI ESTIMADO</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${parseFloat(roi)>0?'var(--green)':'var(--red)'}">${roi}%</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:12px">⚠️ Simulação com prêmios estimados para fins estatísticos. Não representa ganhos reais garantidos.</p>
+    </div>`;
+};
+
+// ============================================================
+// HISTORY
+// ============================================================
+function renderHistory(el) {
+  const cfg = GAME_CONFIG[state.game];
+  const draws = state.draws.slice(0, 100);
+
+  el.innerHTML = `
+    <div class="section-title">📋 Histórico de Sorteios <span class="tag tag-blue">${state.draws.length} registros</span></div>
+    <div class="card">
+      <div class="draws-list">
+        ${draws.map(d => `
+          <div class="draw-item">
+            <span class="draw-num">#${d.concurso}</span>
+            <span class="draw-date">${d.data || '-'}</span>
+            <div class="balls-row">
+              ${d.dezenas.map(n => `<div class="ball ${cfg.ballClass} ball-sm">${String(n).padStart(2,'0')}</div>`).join('')}
+            </div>
+            ${d.acumulado ? '<span class="tag tag-gold" style="margin-left:auto">ACUM.</span>' : ''}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setStatus(msg, loading) {
+  document.getElementById('statusText').textContent = msg;
+  document.getElementById('statusDot').style.background = loading ? 'var(--gold)' : 'var(--green)';
+  document.getElementById('statusDot').style.animation = loading ? 'pulse 0.5s infinite' : 'pulse 2s infinite';
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+function initApp() {
+  // Game selector buttons
+  const btnMega = document.getElementById('btnMega');
+  const btnLoto = document.getElementById('btnLoto');
+  const btnFacil = document.getElementById('btnFacil');
+  const loadBtn = document.getElementById('loadBtn');
+  const csvBtn = document.getElementById('csvBtn');
+  const csvInput = document.getElementById('csvInput');
+
+  if (btnMega && btnLoto && btnFacil && loadBtn && csvBtn && csvInput) {
+    btnMega.addEventListener('click', () => selectGame('megasena'));
+    btnLoto.addEventListener('click', () => selectGame('lotomania'));
+    btnFacil.addEventListener('click', () => selectGame('lotofacil'));
+
+    // Load buttons
+    loadBtn.addEventListener('click', loadData);
+    csvBtn.addEventListener('click', () => csvInput.click());
+    csvInput.addEventListener('change', handleCSVFile);
+
+    // Initialize with Mega Sena
+    selectGame('megasena');
+  } else {
+    console.error('Some DOM elements not found');
+  }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
+</script>
+</body>
+</html>
