@@ -1,4 +1,5 @@
 LotoStats - Resultado das Loterias do Brasil
+
 (c) Paulo Eduardo Pithan - edupithan@gmail.com
 
 Análises Estatísticas (além das solicitadas):
