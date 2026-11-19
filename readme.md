@@ -1,4 +1,5 @@
-
+LotoStats - Resultado das Loterias do Brasil
+(c) Paulo Eduardo Pithan - edupithan@gmail.com
 
 Análises Estatísticas (além das solicitadas):
 Frequência por dezena ao longo do tempo (linha do tempo)
@@ -20,11 +21,9 @@ Simulador:
 Gráfico de calor (heatmap) das dezenas
 Exportar cartão para imagem/PDF
 Histórico dos seus jogos salvos
-Vou construir agora um app completo com React + API da Caixa:
+Um app completo, com React + API da Caixa:
 
 ------------------------------
-
-O que foi construído
 
 9 módulos funcionais:
 Visão Geral — KPIs instantâneos: número mais/menos sorteado, distribuição pares/ímpares, último sorteio, par mais frequente, sequências consecutivas
